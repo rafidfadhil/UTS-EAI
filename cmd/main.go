@@ -1,19 +1,27 @@
 package main
 
 import (
-	"log"
-	
-	"github.com/rafidfadhil/UTS-EAI/internal/app"
-	"github.com/joho/godotenv"
+	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/rafidfadhil/UTS-EAI/internal/database"
+	"github.com/rafidfadhil/UTS-EAI/internal/routes"
 )
 
 func main() {
-	// read .env file
-	err := godotenv.Load()
+	database.Connect()
+	app := fiber.New()
+
+	app.Use(cors.New(cors.Config{
+		AllowOrigins:     "*",
+		AllowHeaders:     "Origin, Content-Type, Accept",
+		AllowMethods:     "GET, POST, PUT, DELETE",
+		AllowCredentials: true,
+	}))
+
+	routes.Setup(app)
+
+	err := app.Listen(":3000")
 	if err != nil {
-		log.Fatal("Error loading .env file")
+		panic(err)
 	}
-
-
-	app.Init()
 }

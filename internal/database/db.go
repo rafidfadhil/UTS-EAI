@@ -1,7 +1,6 @@
 package database
 
 import (
-	"fmt"
 	"log"
 
 	"github.com/rafidfadhil/UTS-EAI/internal/model"
@@ -11,19 +10,8 @@ import (
 
 var DB *gorm.DB
 
-type Config struct {
-	Host     string
-	User     string
-	Password string
-	DBName   string
-	Port     string
-	SSLMODE  string
-}
-
-func Connect(c *Config) {
-	dsn := fmt.Sprintf(
-		"host=%s user=%s password=%s dbname=%s port=%s sslmode=%s", c.Host, c.User, c.Password, c.DBName, c.Port, c.SSLMODE,
-	)
+func Connect() {
+	dsn := "host=localhost user=postgres password=postgres dbname=postgres port=5432 sslmode=disable TimeZone=Asia/Shanghai"
 
 	conn, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 
@@ -36,6 +24,9 @@ func Connect(c *Config) {
 	err = conn.AutoMigrate(
 		&model.User{},
 		&model.Role{},
+		&model.UserToken{},
+		&model.Category{},
+		&model.Product{},
 	)
 
 	if err != nil {

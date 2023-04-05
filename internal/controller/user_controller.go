@@ -2,8 +2,10 @@ package controller
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/rafidfadhil/UTS-EAI/internal/database"
 	"github.com/rafidfadhil/UTS-EAI/internal/dto"
 	"github.com/rafidfadhil/UTS-EAI/internal/model"
@@ -41,11 +43,11 @@ func Register(c *fiber.Ctx) (err error) {
 	}
 
 	user := model.User{
-		Name:    req.Name,
-		Email:   req.Email,
-		Phone:  req.Phone,
+		Name:     req.Name,
+		Email:    req.Email,
+		Phone:    req.Phone,
 		Password: string(hashedPassword),
-		Role: "user",
+		Role:     "user",
 	}
 
 	// Check if the user already exists
@@ -81,4 +83,78 @@ func Register(c *fiber.Ctx) (err error) {
 		"message": "User created successfully!",
 		"data":    res,
 	})
+}
+
+// Login
+func Login(c *fiber.Ctx) (err error) {
+	req := dto.LoginRequest{}
+
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+			"message": "Invalid Body Request!",
+		})
+	}
+
+	user := model.User{}
+
+	err = database.DB.Where("email =?", req.Email).First(&user).Error
+
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Failed to login!",
+		})
+	}
+
+	// Compare Password with hashed password
+	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password))
+
+	if err != nil {
+		return c.Status(http.StatusUnauthorized).JSON(fiber.Map{
+			"message": "Incorrect Password!",
+		})
+	}
+
+	claims := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.RegisteredClaims{
+		Issuer:    user.ID,
+		ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24)),
+	})
+
+	token, err := claims.SignedString([]byte("secret"))
+
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Internal server error",
+		})
+	}
+
+	userToken := model.UserToken{
+		UserID: user.ID,
+		Token:  token,
+		Type:   user.Role,
+	}
+
+	// create user token
+
+	err = database.DB.Create(&userToken).Error
+
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Internal server error",
+		})
+	}
+
+	response := dto.LoginResponse{
+		ID:    user.ID,
+		Name:  user.Name,
+		Email: user.Email,
+		Phone: user.Phone,
+		Role:  user.Role,
+		Token: token,
+	}
+
+	return c.Status(http.StatusCreated).JSON(fiber.Map{
+		"message": "User logged in successfully!",
+		"data":    response,
+	})
+
 }
